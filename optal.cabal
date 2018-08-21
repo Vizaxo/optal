@@ -29,3 +29,5 @@ library
                      , containers
                      , lens
                      , mtl
+  exposed-modules:     Examples
+                     , Term
