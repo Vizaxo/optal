@@ -29,5 +29,8 @@ library
                      , containers
                      , lens
                      , mtl
-  exposed-modules:     Examples
+  exposed-modules:     Compiler
+                     , Examples
+                     , InteractionNet
                      , Term
+  other-modules:       Utils
