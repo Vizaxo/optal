@@ -6,6 +6,8 @@ import Control.Monad.State
 import Control.Monad.Writer
 import Data.Map (Map)
 import qualified Data.Map as M
+import Data.List
+import Data.Tuple
 
 
 -- | Nodes in the graph
@@ -17,7 +19,7 @@ data Node
 
 -- | Ports of graph nodes
 data Port = Principal | Secondary | Tertiary
-  deriving Show
+  deriving (Show, Eq)
 
 -- | Addresses of nodes on the heap
 type Addr = Int
@@ -66,3 +68,24 @@ insertNode n = do
 -- | Insert a new connection between two existing nodes into the graph
 insertConn :: MonadWriter InteractionNet m => Connection -> m ()
 insertConn conn = tell $ InteractionNet M.empty [conn]
+
+-- | Lookup a node in the heap
+lookupNode :: Addr -> InteractionNet -> Maybe Node
+lookupNode addr (InteractionNet heap _) = M.lookup addr heap
+
+-- | Lookup what port the given port is connected to
+lookupConn :: NodePort -> InteractionNet -> Maybe NodePort
+lookupConn port (InteractionNet _ conns)
+  = case lookup port conns of
+      Nothing -> lookup port (swap <$> conns)
+      Just p  -> return p
+
+--TODO: lenses
+removeConn :: Connection -> InteractionNet -> InteractionNet
+removeConn conn (InteractionNet heap conns)
+  = InteractionNet heap (delete conn (delete (swap conn) conns))
+
+--TODO: also delete connections to that node
+removeNode :: Addr -> InteractionNet -> InteractionNet
+removeNode addr (InteractionNet heap conns)
+  = InteractionNet (M.delete addr heap) conns
