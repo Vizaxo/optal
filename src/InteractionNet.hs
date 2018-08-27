@@ -6,6 +6,8 @@ import Control.Monad.State
 import Control.Monad.Writer
 import Data.Map (Map)
 import qualified Data.Map as M
+import Data.List
+import Data.Tuple
 
 
 -- | Nodes in the graph
@@ -15,7 +17,7 @@ data NodeType
   | NodFan  -- ^ Principal: single-end. Secondary: shared side a. Tertiary: shared side b
   | NodCroi -- ^ Principal: down. Secondary: up
   | NodBrac -- ^ Principal: down. Secondary: up
-  deriving Show
+  deriving (Eq, Show)
 
 -- | Each node has a type and an associated index
 data Node
@@ -23,11 +25,11 @@ data Node
     { nodeType :: NodeType
     , index :: Int
     }
-  deriving Show
+  deriving (Eq, Show)
 
 -- | Ports of graph nodes
 data Port = Principal | Secondary | Tertiary
-  deriving Show
+  deriving (Eq, Show)
 
 -- | Addresses of nodes on the heap
 type Addr = Int
@@ -48,8 +50,12 @@ type Heap = Map Addr Node
 type FreeVar = (NodePort, Index)
 
 -- | The interaction net
-data InteractionNet = InteractionNet Heap AdjList
-  deriving Show
+data InteractionNet
+  = InteractionNet
+    { heap :: Heap
+    , connections :: AdjList
+    }
+  deriving (Eq, Show) --TODO: isomorphism of interaction nets
 
 
 instance Semigroup InteractionNet where
@@ -76,3 +82,27 @@ insertNode n = do
 -- | Insert a new connection between two existing nodes into the graph
 insertConn :: MonadWriter InteractionNet m => Connection -> m ()
 insertConn conn = tell $ InteractionNet M.empty [conn]
+
+insConn :: Connection -> InteractionNet -> InteractionNet
+insConn conn (InteractionNet heap conns) = InteractionNet heap (conn:conns)
+
+-- | Lookup a node in the heap
+lookupNode :: Addr -> InteractionNet -> Maybe Node
+lookupNode addr (InteractionNet heap _) = M.lookup addr heap
+
+-- | Lookup what port the given port is connected to
+lookupConn :: NodePort -> InteractionNet -> Maybe Connection
+lookupConn port (InteractionNet _ conns)
+  = (port,) <$> case lookup port conns of
+      Nothing -> lookup port (swap <$> conns)
+      Just p  -> return p
+
+--TODO: lenses
+removeConn :: Connection -> InteractionNet -> InteractionNet
+removeConn conn (InteractionNet heap conns)
+  = InteractionNet heap (delete conn (delete (swap conn) conns))
+
+--TODO: also delete connections to that node
+removeNode :: Addr -> InteractionNet -> InteractionNet
+removeNode addr (InteractionNet heap conns)
+  = InteractionNet (M.delete addr heap) conns

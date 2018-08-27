@@ -17,3 +17,7 @@ fst' = TLam (TLam (TVar 1))
 -- | λλ0
 snd' :: Term
 snd' = TLam (TLam (TVar 0))
+
+-- | (λ0)(λ0)
+idAppId :: Term
+idAppId = TApp identity identity
