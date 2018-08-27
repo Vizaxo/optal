@@ -26,7 +26,10 @@ compile'
   -> Term                         -- ^ The term to compile
   -> m [FreeVar]                  -- ^ Returns the ports to connect variables to
 compile' root (TVar i) = do
-  pure [(root, i)]
+  index <- ask
+  croi <- insertNode (Node NodCroi index)
+  insertConn (root, (croi, Secondary))
+  pure [((croi, Principal), i)]
 compile' root (TLam body) = do
   index <- ask
   lamNode <- insertNode (Node NodLam index)
@@ -41,8 +44,22 @@ compile' root (TApp f x) = do
   appNode <- insertNode (Node NodApp index)
   insertConn (root, (appNode, Tertiary))
   ffrees <- compile' (appNode, Principal) f
-  xfrees <- local (+1) $ compile' (appNode, Secondary) x
+  xfreesNoBracket <- local (+1) $ compile' (appNode, Secondary) x
+  xfrees <- traverseOf (each . _1) addBracket xfreesNoBracket
   pure (ffrees <> xfrees)
+
+addBracket
+  :: (MonadReader Int m            -- ^ Current index
+    ,MonadWriter InteractionNet m -- ^ Graph connections output
+    ,MonadState Addr m            -- ^ Next fresh address
+    )
+  => NodePort   -- ^ The port to add the bracket to
+  -> m NodePort -- ^ The new port that replaces the input port
+addBracket port = do
+  index <- ask
+  bracket <- insertNode (Node NodBrac index)
+  insertConn (port, (bracket, Secondary))
+  pure (bracket, Principal)
 
 -- | Connect a list of nodes with the appropriate fan nodes for
 -- sharing, and return the root of this shared structure.

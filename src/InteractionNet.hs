@@ -10,9 +10,11 @@ import qualified Data.Map as M
 
 -- | Nodes in the graph
 data NodeType
-  = NodLam -- ^ Principal: root, Secondary: body, Tertiary: var
-  | NodApp -- ^ Principal: f. Secondary: x. Tertiary: root
-  | NodFan -- ^ Principal: single-end. Secondary: shared side a. Tertiary: shared side b
+  = NodLam  -- ^ Principal: root, Secondary: body, Tertiary: var
+  | NodApp  -- ^ Principal: f. Secondary: x. Tertiary: root
+  | NodFan  -- ^ Principal: single-end. Secondary: shared side a. Tertiary: shared side b
+  | NodCroi -- ^ Principal: down. Secondary: up
+  | NodBrac -- ^ Principal: down. Secondary: up
   deriving Show
 
 -- | Each node has a type and an associated index
