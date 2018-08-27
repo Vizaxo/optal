@@ -9,10 +9,18 @@ import qualified Data.Map as M
 
 
 -- | Nodes in the graph
-data Node
+data NodeType
   = NodLam -- ^ Principal: var. Secondary: body. Tertiary: root
   | NodApp -- ^ Principal: f. Secondary: x. Tertiary: root
   | NodFan -- ^ Principal: single-end. Secondary: shared side a. Tertiary: shared side b
+  deriving Show
+
+-- | Each node has a type and an associated index
+data Node
+  = Node
+    { nodeType :: NodeType
+    , index :: Int
+    }
   deriving Show
 
 -- | Ports of graph nodes
