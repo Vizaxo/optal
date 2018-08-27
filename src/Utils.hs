@@ -1,5 +1,6 @@
 module Utils where
 
+import Control.Monad
 import Debug.Trace
 
 halves xs = let n = length xs `div` 2
@@ -15,3 +16,7 @@ catchFailure e Nothing = Left e
 replaceFailureWith :: a -> Either e a -> a
 replaceFailureWith _ (Right x) = x
 replaceFailureWith x (Left _) = x
+
+toMplus :: MonadPlus m => Maybe a -> m a
+toMplus Nothing = mzero
+toMplus (Just x) = pure x

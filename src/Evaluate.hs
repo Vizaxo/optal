@@ -3,37 +3,53 @@ module Evaluate where
 import InteractionNet
 import Utils
 
-import Control.Monad
-import Control.Monad.Fix
+import Control.Monad.Except
+import Control.Monad.State
+import Control.Monad.Trans.Maybe
+import Data.Foldable
 
 -- | Evaluate the net. Returns Nothing if an attempt to lookup a node fails.
 eval :: InteractionNet -> Maybe InteractionNet
-eval net@(InteractionNet heap conns)
+eval net = flip evalState (highestAddr net + 1) $ runMaybeT $ eval' net
+
+-- | Helper function for eval, to separate the logic from the handling
+-- of the monads
+eval' :: (MonadState Addr m, MonadPlus m) => InteractionNet -> m InteractionNet
+eval' net@(InteractionNet heap conns)
   = iterateMb (foldM evalConn net conns)
   where
     iterateMb mx =
       do x <- mx
          if net == x
-           then Just net
-           else eval x
+           then pure net
+           else eval' x
 
 -- | Evaluate a given connection, reducing it if any rules apply to it
-evalConn :: InteractionNet -> Connection -> Maybe InteractionNet
+evalConn
+  :: (MonadState Addr m, MonadPlus m)
+  => InteractionNet
+  -> Connection
+  -> m InteractionNet
 evalConn net ((a, Principal), (b, Principal))
-  = do a' <- lookupNode a net
-       b' <- lookupNode b net
-       case runRule a b net a' b' of
-         Right x -> x
-         -- Try the rule the other way around
-         Left () -> replaceFailureWith (Just net) (runRule b a net b' a')
-evalConn net _ = Just net
+  = do a' <- toMplus $ lookupNode a net
+       b' <- toMplus $ lookupNode b net
+       if (index a' == index b')
+         then runExceptT (runRule a b net a' b') >>= \case
+           Right x -> pure x
+           Left () -> runExceptT (runRule b a net b' a') >>= \case
+             Right x -> pure x
+             Left () -> pure net
+         else pure net
+evalConn net _ = pure net
 
 -- | Run the appropirate rule for the given pair of nodes
-runRule :: Addr -> Addr -> InteractionNet -> Node -> Node -> Either () (Maybe InteractionNet)
+runRule :: (MonadState Addr m, MonadError () m, MonadPlus m) => Addr -> Addr -> InteractionNet -> Node -> Node -> m InteractionNet
 runRule a b net (Node NodApp i) (Node NodLam j) | i == j
-  = Right $ betaReduce a b net
+  = case betaReduce a b net of
+      Just x -> pure x
+      Nothing -> mzero
 runRule _ _ _ _ _
-  = Left ()
+  = throwError ()
 
 -- | Run a beta-reduction rule
 betaReduce

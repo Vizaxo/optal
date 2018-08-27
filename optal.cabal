@@ -29,6 +29,7 @@ library
                      , containers
                      , lens
                      , mtl
+                     , transformers
   exposed-modules:     Compiler
                      , Examples
                      , InteractionNet

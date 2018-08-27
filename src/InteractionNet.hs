@@ -79,6 +79,11 @@ insertNode n = do
   tell $ InteractionNet (M.singleton addr n) []
   return addr
 
+insNode :: (MonadState Addr m) => Node -> InteractionNet -> m InteractionNet
+insNode n (InteractionNet heap conns) = do
+  addr <- fresh
+  pure $ InteractionNet (M.insert addr n heap) conns
+
 -- | Insert a new connection between two existing nodes into the graph
 insertConn :: MonadWriter InteractionNet m => Connection -> m ()
 insertConn conn = tell $ InteractionNet M.empty [conn]
@@ -106,3 +111,6 @@ removeConn conn (InteractionNet heap conns)
 removeNode :: Addr -> InteractionNet -> InteractionNet
 removeNode addr (InteractionNet heap conns)
   = InteractionNet (M.delete addr heap) conns
+
+highestAddr :: InteractionNet -> Addr
+highestAddr (InteractionNet heap _) = maximum $ M.keys heap
