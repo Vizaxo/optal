@@ -1,6 +1,7 @@
 module InteractionNet where
 
 import Term
+import Utils
 
 import Control.Monad.State
 import Control.Monad.Writer
@@ -92,15 +93,15 @@ insConn :: Connection -> InteractionNet -> InteractionNet
 insConn conn (InteractionNet heap conns) = InteractionNet heap (conn:conns)
 
 -- | Lookup a node in the heap
-lookupNode :: Addr -> InteractionNet -> Maybe Node
-lookupNode addr (InteractionNet heap _) = M.lookup addr heap
+lookupNode :: MonadPlus m => Addr -> InteractionNet -> m Node
+lookupNode addr (InteractionNet heap _) = toMplus $ M.lookup addr heap
 
 -- | Lookup what port the given port is connected to
-lookupConn :: NodePort -> InteractionNet -> Maybe Connection
+lookupConn :: MonadPlus m => NodePort -> InteractionNet -> m Connection
 lookupConn port (InteractionNet _ conns)
   = (port,) <$> case lookup port conns of
-      Nothing -> lookup port (swap <$> conns)
-      Just p  -> return p
+      Nothing -> toMplus $ lookup port (swap <$> conns)
+      Just p  -> pure p
 
 --TODO: lenses
 removeConn :: Connection -> InteractionNet -> InteractionNet
@@ -114,3 +115,10 @@ removeNode addr (InteractionNet heap conns)
 
 highestAddr :: InteractionNet -> Addr
 highestAddr (InteractionNet heap _) = maximum $ M.keys heap
+
+-- | Get the node on the other end of a connection to the target
+getConnectedTo :: (MonadPlus m) => Addr -> Connection -> m NodePort
+getConnectedTo target ((adr1, prt1), (adr2, prt2))
+  | adr1 == target = pure (adr2, prt2)
+  | adr2 == target = pure (adr1, prt1)
+  | otherwise = mzero
