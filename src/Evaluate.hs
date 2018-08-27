@@ -67,9 +67,93 @@ betaReduce app lam net = do
     $ removeNode lam
     $ removeNode app
     $ net
-  where
-    getConnectedTo target ((adr1, prt1), (adr2, prt2))
-      | adr1 == target = Just (adr2, prt2)
-      | adr2 == target = Just (adr1, prt1)
-      --TODO: return failure properly with an Either
-      | otherwise = Nothing
+
+-- | Eliminate a pair of brackets facing each other
+bracketAnhiliation
+  :: Addr
+  -> Addr
+  -> InteractionNet
+  -> Maybe InteractionNet
+bracketAnhiliation a b net = do
+  rootToA <- lookupConn (a, Secondary) net
+  root <- getConnectedTo a rootToA
+  aToB <- lookupConn (a, Principal) net
+  bToBody <- lookupConn (b, Secondary) net
+  body <- getConnectedTo b bToBody
+  let rootToBody = (root, body)
+  pure
+    -- Insert new connections
+    $ insConn rootToBody
+    -- Clean up old connections
+    $ removeConn rootToA
+    $ removeConn aToB
+    $ removeConn bToBody
+    -- Clean up old nodes
+    $ removeNode a
+    $ removeNode b
+    $ net
+
+-- | Eliminate a pair of croissants facing each other
+croissantAnhiliation
+  :: Addr
+  -> Addr
+  -> InteractionNet
+  -> Maybe InteractionNet
+croissantAnhiliation a b net = do
+  rootToA <- lookupConn (a, Secondary) net
+  root <- getConnectedTo a rootToA
+  aToB <- lookupConn (a, Principal) net
+  bToBody <- lookupConn (b, Secondary) net
+  body <- getConnectedTo b bToBody
+  let rootToBody = (root, body)
+  pure
+    -- Insert new connections
+    $ insConn rootToBody
+    -- Clean up old connections
+    $ removeConn rootToA
+    $ removeConn aToB
+    $ removeConn bToBody
+    -- Clean up old nodes
+    $ removeNode a
+    $ removeNode b
+    $ net
+
+-- | Eliminate a pair of pans facing each other
+fanAnhiliation
+  :: Addr
+  -> Addr
+  -> InteractionNet
+  -> Maybe InteractionNet
+fanAnhiliation top bottom net = do
+  aToTop <- lookupConn (top, Secondary) net
+  bToTop <- lookupConn (top, Tertiary) net
+  cToBottom <- lookupConn (bottom, Secondary) net
+  dToBottom <- lookupConn (bottom, Tertiary) net
+  topToBottom <- lookupConn (top, Principal) net
+  a <- getConnectedTo top aToTop
+  b <- getConnectedTo top bToTop
+  c <- getConnectedTo bottom cToBottom
+  d <- getConnectedTo bottom dToBottom
+  let aToC = (a, c)
+  let bToD = (b, d)
+  pure
+    -- Insert new connections
+    $ insConn aToC
+    $ insConn bToD
+    -- Clean up old connections
+    $ removeConn aToTop
+    $ removeConn bToTop
+    $ removeConn cToBottom
+    $ removeConn dToBottom
+    $ removeConn topToBottom
+    -- Clean up old nodes
+    $ removeNode top
+    $ removeNode bottom
+    $ net
+
+-- | Get the node on the other end of a connection to the target
+getConnectedTo target ((adr1, prt1), (adr2, prt2))
+  | adr1 == target = Just (adr2, prt2)
+  | adr2 == target = Just (adr1, prt1)
+  --TODO: return failure properly with an Either
+  | otherwise = Nothing
