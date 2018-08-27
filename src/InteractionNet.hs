@@ -10,7 +10,7 @@ import qualified Data.Map as M
 
 -- | Nodes in the graph
 data NodeType
-  = NodLam -- ^ Principal: var. Secondary: body. Tertiary: root
+  = NodLam -- ^ Principal: root, Secondary: body, Tertiary: var
   | NodApp -- ^ Principal: f. Secondary: x. Tertiary: root
   | NodFan -- ^ Principal: single-end. Secondary: shared side a. Tertiary: shared side b
   deriving Show

@@ -30,11 +30,11 @@ compile' root (TVar i) = do
 compile' root (TLam body) = do
   index <- ask
   lamNode <- insertNode (Node NodLam index)
-  insertConn (root, (lamNode, Tertiary))
+  insertConn (root, (lamNode, Principal))
   (toBind, frees) <- partition ((== 0) . snd) <$> compile' (lamNode, Secondary) body
   share (fst <$> toBind) >>= \case
     Nothing -> return ()
-    Just var -> insertConn (var, (lamNode, Principal))
+    Just var -> insertConn (var, (lamNode, Tertiary))
   pure (over (each . _2) (subtract 1) frees)
 compile' root (TApp f x) = do
   index <- ask
