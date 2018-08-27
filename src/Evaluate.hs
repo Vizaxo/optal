@@ -33,19 +33,28 @@ evalConn
 evalConn net ((a, Principal), (b, Principal))
   = do a' <- toMplus $ lookupNode a net
        b' <- toMplus $ lookupNode b net
-       if (index a' == index b')
-         then runExceptT (runRule a b net a' b') >>= \case
+       runExceptT (runRule a b net a' b') >>= \case
+         Right x -> pure x
+         Left () -> runExceptT (runRule b a net b' a') >>= \case
            Right x -> pure x
-           Left () -> runExceptT (runRule b a net b' a') >>= \case
-             Right x -> pure x
-             Left () -> pure net
-         else pure net
+           Left () -> pure net
 evalConn net _ = pure net
 
 -- | Run the appropirate rule for the given pair of nodes
-runRule :: (MonadState Addr m, MonadError () m, MonadPlus m) => Addr -> Addr -> InteractionNet -> Node -> Node -> m InteractionNet
+runRule
+  :: (MonadState Addr m, MonadError () m, MonadPlus m)
+  => Addr -> Addr
+  -> InteractionNet
+  -> Node -> Node
+  -> m InteractionNet
 runRule a b net (Node NodApp i) (Node NodLam j) | i == j
   = betaReduce a b net
+runRule a b net (Node NodBrac i) (Node NodBrac j) | i == j
+  = unaryPairAnhiliation a b net
+runRule a b net (Node NodCroi i) (Node NodCroi j) | i == j
+  = unaryPairAnhiliation a b net
+runRule a b net (Node NodFan i) (Node NodFan j) | i == j
+  = fanAnhiliation a b net
 runRule _ _ _ _ _
   = throwError ()
 
