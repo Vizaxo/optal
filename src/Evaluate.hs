@@ -4,6 +4,7 @@ import InteractionNet
 import Utils
 
 import Control.Monad.Except
+import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Trans.Maybe
 import Data.Foldable
@@ -16,7 +17,7 @@ eval net = flip evalState (highestAddr net + 1) $ runMaybeT $ eval' net
 -- of the monads
 eval' :: (MonadState Addr m, MonadPlus m) => InteractionNet -> m InteractionNet
 eval' net@(InteractionNet heap conns)
-  = iterateMb (foldM evalConn net conns)
+  = iterateMb (foldM (\n conn -> runReaderT (evalConn conn) n) net conns)
   where
     iterateMb mx =
       do x <- mx
@@ -26,49 +27,47 @@ eval' net@(InteractionNet heap conns)
 
 -- | Evaluate a given connection, reducing it if any rules apply to it
 evalConn
-  :: (MonadState Addr m, MonadPlus m)
-  => InteractionNet
-  -> Connection
+  :: (MonadReader InteractionNet m, MonadState Addr m, MonadPlus m)
+  => Connection
   -> m InteractionNet
-evalConn net ((a, Principal), (b, Principal))
-  = do a' <- toMplus $ lookupNode a net
-       b' <- toMplus $ lookupNode b net
-       runExceptT (runRule a b net a' b') >>= \case
+evalConn ((a, Principal), (b, Principal))
+  = do a' <- lookupNode a
+       b' <- lookupNode b
+       runExceptT (runRule a b a' b') >>= \case
          Right x -> pure x
-         Left () -> runExceptT (runRule b a net b' a') >>= \case
+         Left () -> runExceptT (runRule b a b' a') >>= \case
            Right x -> pure x
-           Left () -> pure net
-evalConn net _ = pure net
+           Left () -> ask
+evalConn _ = ask
 
 -- | Run the appropirate rule for the given pair of nodes
 runRule
-  :: (MonadState Addr m, MonadError () m, MonadPlus m)
+  :: (MonadReader InteractionNet m, MonadState Addr m, MonadError () m, MonadPlus m)
   => Addr -> Addr
-  -> InteractionNet
   -> Node -> Node
   -> m InteractionNet
-runRule a b net (Node NodApp i) (Node NodLam j) | i == j
-  = betaReduce a b net
-runRule a b net (Node NodBrac i) (Node NodBrac j) | i == j
-  = unaryPairAnhiliation a b net
-runRule a b net (Node NodCroi i) (Node NodCroi j) | i == j
-  = unaryPairAnhiliation a b net
-runRule a b net (Node NodFan i) (Node NodFan j) | i == j
-  = fanAnhiliation a b net
-runRule _ _ _ _ _
+runRule a b (Node NodApp i) (Node NodLam j) | i == j
+  = betaReduce a b
+runRule a b (Node NodBrac i) (Node NodBrac j) | i == j
+  = unaryPairAnhiliation a b
+runRule a b (Node NodCroi i) (Node NodCroi j) | i == j
+  = unaryPairAnhiliation a b
+runRule a b (Node NodFan i) (Node NodFan j) | i == j
+  = fanAnhiliation a b
+runRule _ _ _ _
   = throwError ()
 
 -- | Helper function for making an interaction rule
 mkRule
-  :: MonadState Addr m
+  :: (MonadReader InteractionNet m, MonadState Addr m)
   => [Connection] -- ^ Insert these connections
   -> [Node]       -- ^ Insert these nodes
   -> [Connection] -- ^ Remove these connections
   -> [Addr]       -- ^ Remove these nodes
-  -> InteractionNet
   -> m InteractionNet
-mkRule insCons insNods remCons remNods net
-  = do net' <- foldrM insNode net insNods
+mkRule insCons insNods remCons remNods
+  = do net <- ask
+       net' <- foldrM insNode net insNods
        pure $
          foldr insConn
          (foldr removeConn
@@ -76,20 +75,19 @@ mkRule insCons insNods remCons remNods net
 
 -- | Run a beta-reduction rule
 betaReduce
-  :: (MonadState Addr m, MonadPlus m)
+  :: (MonadReader InteractionNet m, MonadState Addr m, MonadPlus m)
   => Addr -- ^ The application node
   -> Addr -- ^ The lambda node
-  -> InteractionNet
   -> m InteractionNet -- ^ Nothing if the expected connections don't exist
-betaReduce app lam net = do
-  rootToApp <- lookupConn (app, Tertiary) net
+betaReduce app lam = do
+  rootToApp <- lookupConn (app, Tertiary)
   root <- getConnectedTo app rootToApp
-  lamToBody <- lookupConn (lam, Secondary) net
+  lamToBody <- lookupConn (lam, Secondary)
   body <- getConnectedTo lam lamToBody
   let rootToBody = (root, body)
-  varToLam <- lookupConn (lam, Tertiary) net
+  varToLam <- lookupConn (lam, Tertiary)
   var <- getConnectedTo lam varToLam
-  appToX <- lookupConn (app, Secondary) net
+  appToX <- lookupConn (app, Secondary)
   x <- getConnectedTo app appToX
   let xToVar = (x, var)
   let appToLam = ((lam, Principal), (app, Principal))
@@ -98,20 +96,19 @@ betaReduce app lam net = do
     []
     [appToX, lamToBody, varToLam, appToLam, rootToApp]
     [lam, app]
-    net
+
 
 -- | Eliminate a pair of brackets/croissants facing each other
 unaryPairAnhiliation
-  :: (MonadState Addr m, MonadPlus m)
+  :: (MonadReader InteractionNet m, MonadState Addr m, MonadPlus m)
   => Addr
   -> Addr
-  -> InteractionNet
   -> m InteractionNet
-unaryPairAnhiliation a b net = do
-  rootToA <- lookupConn (a, Secondary) net
+unaryPairAnhiliation a b = do
+  rootToA <- lookupConn (a, Secondary)
   root <- getConnectedTo a rootToA
-  aToB <- lookupConn (a, Principal) net
-  bToBody <- lookupConn (b, Secondary) net
+  aToB <- lookupConn (a, Principal)
+  bToBody <- lookupConn (b, Secondary)
   body <- getConnectedTo b bToBody
   let rootToBody = (root, body)
   mkRule
@@ -119,21 +116,20 @@ unaryPairAnhiliation a b net = do
     []
     [rootToA, aToB, bToBody]
     [a, b]
-    net
+
 
 -- | Eliminate a pair of fans facing each other
 fanAnhiliation
-  :: (MonadState Addr m, MonadPlus m)
+  :: (MonadReader InteractionNet m, MonadState Addr m, MonadPlus m)
   => Addr
   -> Addr
-  -> InteractionNet
   -> m InteractionNet
-fanAnhiliation top bottom net = do
-  aToTop <- lookupConn (top, Secondary) net
-  bToTop <- lookupConn (top, Tertiary) net
-  cToBottom <- lookupConn (bottom, Secondary) net
-  dToBottom <- lookupConn (bottom, Tertiary) net
-  topToBottom <- lookupConn (top, Principal) net
+fanAnhiliation top bottom = do
+  aToTop <- lookupConn (top, Secondary)
+  bToTop <- lookupConn (top, Tertiary)
+  cToBottom <- lookupConn (bottom, Secondary)
+  dToBottom <- lookupConn (bottom, Tertiary)
+  topToBottom <- lookupConn (top, Principal)
   a <- getConnectedTo top aToTop
   b <- getConnectedTo top bToTop
   c <- getConnectedTo bottom cToBottom
@@ -145,4 +141,3 @@ fanAnhiliation top bottom net = do
     []
     [aToTop, bToTop, cToBottom, dToBottom, topToBottom]
     [top, bottom]
-    net

@@ -3,11 +3,12 @@ module InteractionNet where
 import Term
 import Utils
 
+import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Writer
+import Data.List
 import Data.Map (Map)
 import qualified Data.Map as M
-import Data.List
 import Data.Tuple
 
 
@@ -93,15 +94,18 @@ insConn :: Connection -> InteractionNet -> InteractionNet
 insConn conn (InteractionNet heap conns) = InteractionNet heap (conn:conns)
 
 -- | Lookup a node in the heap
-lookupNode :: MonadPlus m => Addr -> InteractionNet -> m Node
-lookupNode addr (InteractionNet heap _) = toMplus $ M.lookup addr heap
+lookupNode :: (MonadReader InteractionNet m, MonadPlus m) => Addr -> m Node
+lookupNode addr = do
+  (InteractionNet heap _) <- ask
+  toMplus $ M.lookup addr heap
 
 -- | Lookup what port the given port is connected to
-lookupConn :: MonadPlus m => NodePort -> InteractionNet -> m Connection
-lookupConn port (InteractionNet _ conns)
-  = (port,) <$> case lookup port conns of
-      Nothing -> toMplus $ lookup port (swap <$> conns)
-      Just p  -> pure p
+lookupConn :: (MonadReader InteractionNet m, MonadPlus m) => NodePort -> m Connection
+lookupConn port = do
+  (InteractionNet _ conns) <- ask
+  (port,) <$> case lookup port conns of
+    Nothing -> toMplus $ lookup port (swap <$> conns)
+    Just p  -> pure p
 
 --TODO: lenses
 removeConn :: Connection -> InteractionNet -> InteractionNet
