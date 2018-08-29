@@ -67,6 +67,12 @@ instance Monoid InteractionNet where
   mempty = InteractionNet M.empty []
 
 
+-- | The global root node of any given graph will be here. This will
+-- not actually be a node, but is the node that the main net connects
+-- to.
+rootNode :: NodePort
+rootNode = ((-1), Principal)
+
 -- | Generate a fresh address in the heap
 fresh :: MonadState Addr m => m Addr
 fresh = do

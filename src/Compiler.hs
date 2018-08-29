@@ -13,8 +13,7 @@ import Data.List
 -- | Compile a term into an InteractionNet
 compile :: Term -> InteractionNet
 compile t = execWriter (evalStateT (runReaderT go 0) 0)
-  where go = do root <- fresh
-                compile' (root, Principal) t
+  where go = compile' rootNode t
 
 -- | Helper compile function, where the work gets done
 compile'
