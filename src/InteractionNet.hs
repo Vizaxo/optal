@@ -121,8 +121,12 @@ highestAddr :: InteractionNet -> Addr
 highestAddr (InteractionNet heap _) = maximum $ M.keys heap
 
 -- | Get the node on the other end of a connection to the target
-getConnectedTo :: (MonadPlus m) => Addr -> Connection -> m NodePort
-getConnectedTo target ((adr1, prt1), (adr2, prt2))
-  | adr1 == target = pure (adr2, prt2)
-  | adr2 == target = pure (adr1, prt1)
-  | otherwise = mzero
+getConnectedTo :: (MonadReader InteractionNet m, MonadPlus m) => NodePort -> m NodePort
+getConnectedTo port = do
+  conn <- lookupConn port
+  otherEnd port conn
+  where
+    otherEnd (taddr, tport) ((adr1, prt1), (adr2, prt2))
+      | taddr == adr1 && tport == prt1 = pure (adr2, prt2)
+      | taddr == adr2 && tport == prt2 = pure (adr2, prt2)
+      | otherwise = mzero

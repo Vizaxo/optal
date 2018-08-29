@@ -81,14 +81,14 @@ betaReduce
   -> m InteractionNet -- ^ Nothing if the expected connections don't exist
 betaReduce app lam = do
   rootToApp <- lookupConn (app, Tertiary)
-  root <- getConnectedTo app rootToApp
+  root <- getConnectedTo (app, Tertiary)
   lamToBody <- lookupConn (lam, Secondary)
-  body <- getConnectedTo lam lamToBody
+  body <- getConnectedTo (lam, Secondary)
   let rootToBody = (root, body)
   varToLam <- lookupConn (lam, Tertiary)
-  var <- getConnectedTo lam varToLam
+  var <- getConnectedTo (lam, Tertiary)
   appToX <- lookupConn (app, Secondary)
-  x <- getConnectedTo app appToX
+  x <- getConnectedTo (app, Secondary)
   let xToVar = (x, var)
   let appToLam = ((lam, Principal), (app, Principal))
   mkRule
@@ -106,10 +106,10 @@ unaryPairAnhiliation
   -> m InteractionNet
 unaryPairAnhiliation a b = do
   rootToA <- lookupConn (a, Secondary)
-  root <- getConnectedTo a rootToA
+  root <- getConnectedTo (a, Secondary)
   aToB <- lookupConn (a, Principal)
   bToBody <- lookupConn (b, Secondary)
-  body <- getConnectedTo b bToBody
+  body <- getConnectedTo (b, Secondary)
   let rootToBody = (root, body)
   mkRule
     [rootToBody]
@@ -130,10 +130,10 @@ fanAnhiliation top bottom = do
   cToBottom <- lookupConn (bottom, Secondary)
   dToBottom <- lookupConn (bottom, Tertiary)
   topToBottom <- lookupConn (top, Principal)
-  a <- getConnectedTo top aToTop
-  b <- getConnectedTo top bToTop
-  c <- getConnectedTo bottom cToBottom
-  d <- getConnectedTo bottom dToBottom
+  a <- getConnectedTo (top, Secondary)
+  b <- getConnectedTo (top, Tertiary)
+  c <- getConnectedTo (bottom, Secondary)
+  d <- getConnectedTo (bottom, Tertiary)
   let aToC = (a, c)
   let bToD = (b, d)
   mkRule
