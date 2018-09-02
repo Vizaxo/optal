@@ -39,9 +39,13 @@ packages:
 # using the same syntax as the packages field.
 # (e.g., acme-missiles-0.3)
 extra-deps:
+- QuickCheck-2.11.3
 - containers-0.5.11.0
 - lens-4.17
 - mtl-2.2.2
+- tasty-1.1.0.3
+- tasty-hunit-0.10.0.1
+- tasty-quickcheck-0.10
 - transformers-0.5.5.0
 
 # Override default flag values for local packages and extra-deps

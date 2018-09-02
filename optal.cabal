@@ -31,7 +31,32 @@ library
                      , mtl
                      , transformers
   exposed-modules:     Compiler
+                     , Decompiler
+                     , Evaluate
                      , Examples
                      , InteractionNet
                      , Term
   other-modules:       Utils
+
+
+test-suite Test
+  type:                exitcode-stdio-1.0
+  main-is:             Test.hs
+  hs-source-dirs:      test
+  default-language:    Haskell2010
+  default-extensions:  DataKinds
+                     , FlexibleContexts
+                     , FlexibleInstances
+                     , GeneralizedNewtypeDeriving
+                     , LambdaCase
+                     , MultiParamTypeClasses
+                     , ScopedTypeVariables
+                     , TupleSections
+                     , TypeApplications
+  other-modules:       Test.SimpleExamples
+  build-depends:       base >= 4.7 && < 5
+                     , tasty
+                     , optal
+                     , tasty-hunit
+                     , tasty-quickcheck
+                     , QuickCheck
