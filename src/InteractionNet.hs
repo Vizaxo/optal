@@ -19,6 +19,7 @@ data NodeType
   | NodFan  -- ^ Principal: single-end. Secondary: shared side a. Tertiary: shared side b
   | NodCroi -- ^ Principal: down. Secondary: up
   | NodBrac -- ^ Principal: down. Secondary: up
+  | NodRoot -- ^ The root node of the graph. Principal: only connection
   deriving (Eq, Show)
 
 -- | Each node has a type and an associated index
@@ -67,11 +68,15 @@ instance Monoid InteractionNet where
   mempty = InteractionNet M.empty []
 
 
+-- | The address of the global root node.
+rootAddr :: Addr
+rootAddr = (-1)
+
 -- | The global root node of any given graph will be here. This will
 -- not actually be a node, but is the node that the main net connects
 -- to.
 rootNode :: NodePort
-rootNode = ((-1), Principal)
+rootNode = (rootAddr, Principal)
 
 -- | Generate a fresh address in the heap
 fresh :: MonadState Addr m => m Addr
@@ -84,8 +89,13 @@ fresh = do
 insertNode :: (MonadWriter InteractionNet m, MonadState Addr m) => Node -> m Addr
 insertNode n = do
   addr <- fresh
-  tell $ InteractionNet (M.singleton addr n) []
+  insertNodeAt addr n
   return addr
+
+-- | Insert a node into the heap, returning its address
+insertNodeAt :: (MonadWriter InteractionNet m, MonadState Addr m) => Addr -> Node -> m ()
+insertNodeAt addr n = do
+  tell $ InteractionNet (M.singleton addr n) []
 
 insNode :: (MonadState Addr m) => Node -> InteractionNet -> m InteractionNet
 insNode n (InteractionNet heap conns) = do
